@@ -9,28 +9,39 @@ module Exercises where
 
 -- | Let's introduce a new class, 'Countable', and some instances to match.
 class Countable a where count :: a -> Int
-instance Countable Int  where count   = id
-instance Countable [a]  where count   = length
-instance Countable Bool where count x = if x then 1 else 0
+instance Countable Int      where count   = id
+instance Countable [a]      where count   = length
+instance Countable Bool     where count x = if x then 1 else 0
+
 
 -- | a. Build a GADT, 'CountableList', that can hold a list of 'Countable'
 -- things.
 
 data CountableList where
-  -- ...
+  CountableNil :: CountableList
+  CountableCons :: (Show a, Countable a) => a -> CountableList -> CountableList
 
+instance Show CountableList where
+  show  CountableNil             = "[]"
+  show (CountableCons head tail) = show head ++ " : " ++ show tail
 
 -- | b. Write a function that takes the sum of all members of a 'CountableList'
 -- once they have been 'count'ed.
 
 countList :: CountableList -> Int
-countList = error "Implement me!"
+countList xs = go xs 0
+  where go CountableNil t = t
+        go (CountableCons head tail) t = go tail $ t + (count head) 
 
 
 -- | c. Write a function that removes all elements whose count is 0.
 
 dropZero :: CountableList -> CountableList
-dropZero = error "Implement me!"
+dropZero xs = go xs CountableNil
+  where go CountableNil r = r
+        go (CountableCons head tail) r
+          | count head > 0 = go tail $ CountableCons head r
+          | otherwise = go tail r
 
 
 -- | d. Can we write a function that removes all the things in the list of type
