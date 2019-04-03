@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds      #-}
 {-# LANGUAGE GADTs          #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Exercises where
 
 import Data.Kind (Type)
@@ -79,17 +80,20 @@ data Showable where
 -- stores this fact in the type-level.
 
 data MaybeShowable (isShowable :: Bool) where
-  -- ...
+  CanShow :: Show a => a -> MaybeShowable 'True
+  NoShow :: a -> MaybeShowable 'False 
+
 
 -- | b. Write a 'Show' instance for 'MaybeShowable'. Your instance should not
 -- work unless the type is actually 'show'able.
-
+instance Show (MaybeShowable 'True) where
+  show (CanShow a) = show a
 -- | c. What if we wanted to generalise this to @Constrainable@, such that it
 -- would work for any user-supplied constraint of kind 'Constraint'? How would
 -- the type change? What would the constructor look like? Try to build this
 -- type - GHC should tell you exactly which extension you're missing.
 
-
+-- CONSTRAINT KINDS BABY
 
 
 
@@ -105,11 +109,14 @@ data List a = Nil | Cons a (List a)
 -- having a list of types!
 
 data HList (types :: List Type) where
-  -- HNil  :: ...
-  -- HCons :: ...
+  HNil  :: HList 'Nil 
+  HCons :: x -> HList ts -> HList ('Cons x ts) 
 
 -- | b. Write a well-typed, 'Maybe'-less implementation for the 'tail' function
 -- on 'HList'.
+
+hTail :: HList ('Cons x xs) -> HList xs
+hTail (HCons a as) = as
 
 -- | c. Could we write the 'take' function? What would its type be? What would
 -- get in our way?
@@ -122,11 +129,11 @@ data HList (types :: List Type) where
 
 -- | Here's a boring data type:
 
-data BlogAction
-  = AddBlog
-  | DeleteBlog
-  | AddComment
-  | DeleteComment
+-- data BlogAction
+--   = AddBlog
+--   | DeleteBlog
+--   | AddComment
+--   | DeleteComment
 
 -- | a. Two of these actions, 'DeleteBlog' and 'DeleteComment', should be
 -- admin-only. Extend the 'BlogAction' type (perhaps with a GADT...) to
@@ -134,20 +141,28 @@ data BlogAction
 -- Remember that, by switching on @DataKinds@, we have access to a promoted
 -- version of 'Bool'!
 
+data BlogAction (adminOnly :: Bool) where
+   AddBlog :: BlogAction 'False
+   DeleteBlog :: BlogAction 'True
+   AddComment :: BlogAction 'False
+   DeleteComment :: BlogAction 'True
+
 -- | b. Write a 'BlogAction' list type that requires all its members to be
 -- the same "access level": "admin" or "non-admin".
 
--- data BlogActionList (isSafe :: ???) where
---   ...
+data BlogActionList (isAdminOnly :: Bool) where
+  AdminCons :: BlogAction 'True -> BlogActionList 'True -> BlogActionList 'True
+  AdminNil :: BlogActionList 'True
+  UserCons :: BlogAction 'False -> BlogActionList 'False -> BlogActionList 'False
+  UserNil :: BlogActionList 'False
 
 -- | c. Let's imagine that our requirements change, and 'DeleteComment' is now
 -- available to a third role: moderators. Could we use 'DataKinds' to introduce
 -- the three roles at the type-level, and modify our type to keep track of
 -- this?
-
-
-
-
+-- yes by using some sum type "admin level" or using a 
+-- type level tuple
+-- but im not going to do it because long
 
 {- SEVEN -}
 
@@ -166,20 +181,24 @@ data SBool (value :: Bool) where
 -- | a. Write a singleton type for natural numbers:
 
 data SNat (value :: Nat) where
-  -- ...
+  SingZ :: SNat 'Z
+  SingS :: SNat n -> SNat ('S n)
 
--- | b. Write a function that extracts a vector's length at the type level:
+-- | b. Write a function that extracts a vector's vLength at the type level:
 
-length :: Vector n a -> SNat n
-length = error "Implement me!"
+data Vector (n :: Nat) (a :: Type) where
+  VNil  :: Vector 'Z a
+  VCons :: a -> Vector n a -> Vector ('S n) a
+
+vLength :: Vector n a -> SNat n
+vLength VNil = SingZ 
+vLength (VCons x xs) = SingS $ vLength xs
 
 -- | c. Is 'Proxy' a singleton type?
 
 data Proxy a = Proxy
 
-
-
-
+-- I'm gonna say no? because it's uninhabited by its type?
 
 {- EIGHT -}
 
@@ -187,21 +206,29 @@ data Proxy a = Proxy
 -- and write to a file. To do this, we might write a data type to express our
 -- intentions:
 
-data Program                     result
-  = OpenFile            (Program result)
-  | WriteFile  String   (Program result)
-  | ReadFile  (String -> Program result)
-  | CloseFile (          Program result)
-  | Exit                         result
+-- data Program result
+--   = OpenFile            (Program result)
+--   | WriteFile  String   (Program result)
+--   | ReadFile  (String -> Program result)
+--   | CloseFile (          Program result)
+--   | Exit                         result
+ 
+data Program (fileOpen :: Bool) (result :: Type) where 
+   OpenFile  :: Program 'True result -> Program 'False result
+   WriteFile :: String -> Program 'True result -> Program 'True result
+   ReadFile  :: (String -> Program 'True result) -> Program 'True result 
+   CloseFile :: Program 'False result -> Program 'True result
+   Exit      :: result -> Program 'False result 
 
 -- | We could then write a program like this to use our language:
 
-myApp :: Program Bool
+myApp :: Program 'False Bool
 myApp
-  = OpenFile $ WriteFile "HEY" $ (ReadFile $ \contents ->
-      if contents == "WHAT"
-        then WriteFile "... bug?" $ Exit False
-        else CloseFile            $ Exit True)
+  = OpenFile $
+      WriteFile "HEY" $ (ReadFile $ \contents ->
+        if contents == "WHAT"
+          then WriteFile "... bug?" $ CloseFile $ Exit False
+          else CloseFile            $ Exit True)
 
 -- | ... but wait, there's a bug! If the contents of the file equal "WHAT", we
 -- forget to close the file! Ideally, we would like the compiler to help us: we
@@ -226,8 +253,8 @@ myApp
 -- | EXTRA: write an interpreter for this program. Nothing to do with data
 -- kinds, but a nice little problem.
 
-interpret :: Program {- ??? -} a -> IO a
-interpret = error "Implement me?"
+-- interpret :: Program {- ??? -} a -> IO a
+-- interpret = error "Implement me?"
 
 
 
@@ -237,9 +264,9 @@ interpret = error "Implement me?"
 
 -- | Recall our vector type:
 
-data Vector (n :: Nat) (a :: Type) where
-  VNil  :: Vector 'Z a
-  VCons :: a -> Vector n a -> Vector ('S n) a
+-- data Vector (n :: Nat) (a :: Type) where
+--   VNil  :: Vector 'Z a
+--   VCons :: a -> Vector n a -> Vector ('S n) a
 
 -- | Imagine we want to write the '(!!)' function for this vector. If we wanted
 -- to make this type-safe, and avoid 'Maybe', we'd have to have a type that can
@@ -249,7 +276,8 @@ data Vector (n :: Nat) (a :: Type) where
 -- into Z and S cases. That's all the hint you need :)
 
 data SmallerThan (limit :: Nat) where
-  -- ...
+   STZ :: SmallerThan ('S any) 
+   STS :: SmallerThan any -> SmallerThan ('S any) 
 
 -- | b. Write the '(!!)' function:
 
@@ -257,3 +285,6 @@ data SmallerThan (limit :: Nat) where
 (!!) = error "Implement me!"
 
 -- | c. Write a function that converts a @SmallerThan n@ into a 'Nat'.
+smallerThanToNat :: SmallerThan n -> Nat
+smallerThanToNat STZ = Z 
+smallerThanToNat (STS x) = S $ smallerThanToNat x  

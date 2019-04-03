@@ -42,8 +42,8 @@ data CanFold a where
 
 -- | a. The following function unpacks a 'CanFold'. What is its type?
 
--- unpackCanFold :: ???
--- unpackCanFold f (CanFold x) = f x
+unpackCanFold :: (forall a. a -> r) -> CanFold a -> r 
+unpackCanFold f (CanFold x) = f x
 
 -- | b. Can we use 'unpackCanFold' to figure out if a 'CanFold' is "empty"?
 -- Could we write @length :: CanFold a -> Int@? If so, write it!
@@ -166,10 +166,6 @@ data MysteryBox a where
 -- | c. Write a function that uses 'unwrap' to print the name of the next
 -- layer's constructor.
 
-
-
-
-
 {- SEVEN -}
 
 -- | When we talked about @DataKinds@, we briefly looked at the 'SNat' type:
@@ -183,7 +179,8 @@ data SNat (n :: Nat) where
 -- | We also saw that we could convert from an 'SNat' to a 'Nat':
 
 toNat :: SNat n -> Nat
-toNat = error "You should already know this one ;)"
+toNat SZ = Z
+toNat (SS n) = S $ toNat n
 
 -- | How do we go the other way, though? How do we turn a 'Nat' into an 'SNat'?
 -- In the general case, this is impossible: the 'Nat' could be calculated from
@@ -195,6 +192,13 @@ toNat = error "You should already know this one ;)"
 -- SNat-accepting function (maybe at a higher rank?) that returns an @r@, and
 -- then returns an @r@. The successor case is a bit weird here - type holes
 -- will help you!
+
+fromNat :: (forall a. SNat a -> r) -> Nat -> r
+fromNat f Z = f SZ
+fromNat f (S n) = fromNat (f . SS) n 
+  
+  
+
 
 -- | If you're looking for a property that you could use to test your function,
 -- remember that @fromNat x toNat === x@!
@@ -214,3 +218,15 @@ data Vector (n :: Nat) (a :: Type) where
 -- | It would be nice to have a 'filter' function for vectors, but there's a
 -- problem: we don't know at compile time what the new length of our vector
 -- will be... but has that ever stopped us? Make it so!
+
+vFilter :: (a -> Bool) -> Vector n a -> (forall m. Vector m a -> r) -> r 
+vFilter f VNil g = g VNil 
+vFilter f (VCons a v) g =
+  vFilter f v (if f a then g . VCons a else g)
+
+vToList :: Vector n a -> [a]
+vToList VNil = []
+vToList (VCons x xs) = x : vToList xs 
+-- I thought that I was being smart by adding in some kind of smart
+-- vToList then listToV function, but listToV still suffers as it
+-- means I don't know what the n in the returned vector will be
