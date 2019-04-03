@@ -1,7 +1,8 @@
-{-# LANGUAGE DataKinds     #-}
-{-# LANGUAGE GADTs         #-}
-{-# LANGUAGE TypeFamilies  #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Exercises where
 
 import Data.Kind (Constraint, Type)
@@ -22,17 +23,27 @@ data Nat = Z | S Nat
 -- | a. Use the @TypeOperators@ extension to rewrite the 'Add' family with the
 -- name '+':
 
+type family (+) (x :: Nat) (y :: Nat) :: Nat where
+  (+) 'Z     y = y
+  (+) ('S x) y = 'S (x + y )
+
 -- | b. Write a type family '*' that multiplies two naturals using '(+)'. Which
 -- extension are you being told to enable? Why?
+
+-- illegal nested type family is a big yikes - undecidable instances :|
+--
+type family (*) (x :: Nat) (y :: Nat) :: Nat where
+  (*) 'Z _     = 'Z
+  (*) ('S x) y = y + (x * y) 
 
 data SNat (value :: Nat) where
   SZ :: SNat 'Z
   SS :: SNat n -> SNat ('S n)
 
 -- | c. Write a function to add two 'SNat' values.
-
-
-
+sAdd :: SNat a -> SNat b -> SNat (a + b) 
+sAdd SZ     y = y
+sAdd (SS x) y = SS (sAdd x y)
 
 
 {- TWO -}
@@ -44,28 +55,47 @@ data Vector (count :: Nat) (a :: Type) where
 -- | a. Write a function that appends two vectors together. What would the size
 -- of the result be?
 
--- append :: Vector m a -> Vector n a -> Vector ??? a
+append :: Vector m a -> Vector n a -> Vector (m + n) a
+append VNil x = x 
+append (VCons y ys) x = VCons y $ append ys x 
 
 -- | b. Write a 'flatMap' function that takes a @Vector n a@, and a function
 -- @a -> Vector m b@, and produces a list that is the concatenation of these
 -- results. This could end up being a deceptively big job.
 
--- flatMap :: Vector n a -> (a -> Vector m b) -> Vector ??? b
-flatMap = error "Implement me!"
+flatMap :: Vector n a -> (a -> Vector m b) -> Vector (n * m) b
+flatMap VNil _ = VNil
+flatMap (VCons x xs) f = append (f x) (flatMap xs f)
 
-
+-- fuckin 'ell - my implentation of flatMap (which i was certain was right)
+-- was giving me the error
+-- Could not deduce: (m + (n1 * m)) ~ (n1 * (m + m))
+-- which made me look back at my implementation of (*) which it turned out was
+-- wrong. it was of the form (y * (x + x)), and the needed form was (x + (y * x))
+-- just like the type error said. Type families are good confirmed. 
 
 
 
 {- THREE -}
 
 -- | a. More boolean fun! Write the type-level @&&@ function for booleans.
-
+type family (x :: Bool) && (y :: Bool) :: Bool where
+  'True && 'True   = 'True
+  'False && 'False = 'True
+  _ && _           = 'False
 -- | b. Write the type-level @||@ function for booleans.
+
+type family (x :: Bool) || (y :: Bool) :: Bool where
+  'True || _ = 'True
+  _ || 'True = 'True
+  _ || _     = 'False
 
 -- | c. Write an 'All' function that returns @'True@ if all the values in a
 -- type-level list of boleans are @'True@.
-
+type family All (x :: [Bool]) :: Bool where
+  All '[]          = 'True
+  All ('True : xs) = All xs
+  All ('False : _) = 'False
 
 
 
