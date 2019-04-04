@@ -107,6 +107,12 @@ type family Compare (x :: Nat) (y :: Nat) :: Ordering where
   Compare ('S x) ('S y) = Compare x y
 -- | b. Write a 'Max' family to get the maximum of two natural numbers.
 
+type family Max (x :: Nat) (y :: Nat) :: Nat where
+  Max x y = IfGt (Compare x y) x y 
+
+type family IfGt (o :: Ordering) (n :: Nat) (m :: Nat) :: Nat where
+  IfGt 'GT n _ = n
+  IfGt _ _ m   = m
 -- | c. Write a family to get the maximum natural in a list.
 
 
