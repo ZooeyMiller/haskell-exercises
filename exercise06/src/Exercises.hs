@@ -114,7 +114,9 @@ type family IfGt (o :: Ordering) (n :: Nat) (m :: Nat) :: Nat where
   IfGt 'GT n _ = n
   IfGt _ _ m   = m
 -- | c. Write a family to get the maximum natural in a list.
-
+type family MaxNat (acc :: Nat) (l :: [Nat]) :: Nat where
+  MaxNat x (y:ys) = MaxNat (Max x y) ys
+  MaxNat x '[]    = x
 
 
 
