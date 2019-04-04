@@ -12,10 +12,6 @@ import Data.Kind (Constraint, Type)
 -- regular names as infix names with the backticks, as we would at the value
 -- level.
 
-
-
-
-
 {- ONE -}
 
 data Nat = Z | S Nat
@@ -25,16 +21,16 @@ data Nat = Z | S Nat
 
 type family (+) (x :: Nat) (y :: Nat) :: Nat where
   (+) 'Z     y = y
-  (+) ('S x) y = 'S (x + y )
+  (+) ('S x) y = 'S (x + y)
 
 -- | b. Write a type family '*' that multiplies two naturals using '(+)'. Which
 -- extension are you being told to enable? Why?
 
 -- illegal nested type family is a big yikes - undecidable instances :|
 --
-type family (*) (x :: Nat) (y :: Nat) :: Nat where
-  (*) 'Z _     = 'Z
-  (*) ('S x) y = y + (x * y) 
+type family (**) (x :: Nat) (y :: Nat) :: Nat where
+  (**) 'Z _     = 'Z
+  (**) ('S x) y = y + (x ** y)
 
 data SNat (value :: Nat) where
   SZ :: SNat 'Z
@@ -63,7 +59,7 @@ append (VCons y ys) x = VCons y $ append ys x
 -- @a -> Vector m b@, and produces a list that is the concatenation of these
 -- results. This could end up being a deceptively big job.
 
-flatMap :: Vector n a -> (a -> Vector m b) -> Vector (n * m) b
+flatMap :: Vector n a -> (a -> Vector m b) -> Vector (n ** m) b
 flatMap VNil _ = VNil
 flatMap (VCons x xs) f = append (f x) (flatMap xs f)
 
