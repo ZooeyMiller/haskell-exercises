@@ -9,6 +9,7 @@
 module Exercises where -- ^ This is starting to look impressive, right?
 
 import Data.Kind (Constraint, Type)
+import GHC.TypeLits
 
 -- | Just a quick one today - there really isn't much to cover when we talk
 -- about ConstraintKinds, as it's hopefully quite an intuitive extension: we're
@@ -34,11 +35,22 @@ data List a = Nil | Cons a (List a)
 -- constraints can the @Nil@ case satisfy?
 
 data ConstrainedList (c :: Type -> Constraint) where
-  -- IMPLEMENT ME
+  CCons :: c a => a -> ConstrainedList c -> ConstrainedList c
+  CNil :: ConstrainedList c
 
 -- | b. Using what we know about RankNTypes, write a function to fold a
 -- constrained list. Note that we'll need a folding function that works /for
 -- all/ types who implement some constraint @c@. Wink wink, nudge nudge.
+
+foldCC :: forall (c :: Type -> Constraint) b. 
+            c b
+           => (forall a. (c a, c b) => a -> b -> b)
+           -> ConstrainedList c
+           -> b
+           -> b
+foldCC f (CCons x xs) y = f x $ foldCC f xs y
+foldCC _ CNil y = y
+
 
 -- foldConstrainedList :: ???
 
