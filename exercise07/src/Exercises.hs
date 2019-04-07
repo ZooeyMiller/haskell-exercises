@@ -1,16 +1,17 @@
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ConstraintKinds      #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE KindSignatures       #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
 module Exercises where -- ^ This is starting to look impressive, right?
 
 import Data.Kind (Constraint, Type)
 import GHC.TypeLits
-
+import Data.Monoid
 -- | Just a quick one today - there really isn't much to cover when we talk
 -- about ConstraintKinds, as it's hopefully quite an intuitive extension: we're
 -- just extending the set of things that we can use as constraints to include
@@ -52,7 +53,6 @@ foldCC f (CCons x xs) y = f x $ foldCC f xs y
 foldCC _ CNil y = y
 
 
--- foldConstrainedList :: ???
 
 -- | Often, I'll want to constrain a list by /multiple/ things. The problem is
 -- that I can't directly write multiple constraints into my type, because the
@@ -66,12 +66,11 @@ foldCC _ CNil y = y
 -- combines `Monoid a` and `Show a`. What other extension did you need to
 -- enable? Why?
 
--- class ??? => Constraints a
--- instance ??? => Constraints a
+class (Monoid a, Show a) => Constraints a
+instance (Monoid a, Show a) => Constraints a where
 
 -- | What can we now do with this constrained list that we couldn't before?
 -- There are two opportunities that should stand out!
-
 
 
 
@@ -93,11 +92,32 @@ data HList (xs :: [Type]) where
 -- | a. Write this fold function. I won't give any hints to the definition, but
 -- we will probably need to call it like this:
 
--- test :: ??? => HList xs -> String
--- test = fold (TCProxy :: TCProxy Show) show
+type family CAppend (x :: Constraint) (y :: Constraint) :: Constraint where
+  CAppend x y = (x, y)
+
+type family Every (c :: Type -> Constraint) (x :: [Type]) :: Constraint where
+  Every _ '[] = ()
+  Every c (x ': xs) = CAppend (c x) (Every c xs)
+data TCProxy (x :: Type -> Constraint)
+  = TCProxy
+
+fold' :: forall (c :: Type -> Constraint) m bs.
+         (Monoid m, Every c bs)
+         => TCProxy c
+         -> (forall a. c a => a -> m)
+         -> HList bs
+         -> m
+fold' _ _ HNil  = mempty
+fold' p f (HCons x xs)  = f x <> fold' p f xs 
+
+test :: Every Show xs => HList xs -> String
+test = fold' (TCProxy :: TCProxy Show) show
 
 -- | b. Why do we need the proxy to point out which constraint we're working
 -- with?  What does GHC not like if we remove it?
+
+-- We can't type apply stuff as nicely as we'd like to, so we have to pass
+-- something in at the value level to carry the contraint through
 
 -- | We typically define foldMap like this:
 
@@ -113,3 +133,7 @@ f :: a ~ b => a -> b
 f = id
 
 -- | Write @foldMap@ for @HList@!
+
+foldMap' :: (Monoid m, Every ((~) a) as) => (a -> m) -> HList as -> m
+foldMap' _ HNil = mempty
+foldMap' f (HCons x xs) = f x <> foldMap' f xs

@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE PolyKinds            #-}
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
@@ -6,7 +7,7 @@
 module Exercises where
 
 import Data.Kind (Constraint, Type)
-
+import GHC.TypeLits (TypeError, ErrorMessage(..))
 -- | Before we get started, let's talk about the @TypeOperators@ extension. All
 -- this does is allow us to write types whose names are operators, and write
 -- regular names as infix names with the backticks, as we would at the value
@@ -127,6 +128,19 @@ data Tree = Empty | Node Tree Nat Tree
 
 -- | Write a type family to insert a promoted 'Nat' into a promoted 'Tree'.
 
+type family Insert (x :: Nat) (tree :: Tree) :: Tree where
+  Insert _ Empty = Empty
+  Insert x (Node t y t') = 
+    Case (Compare x y) '[ 
+      '( 'GT, Node t y (Insert x t'))
+    , '( 'EQ, Node t y t' )
+    , '( 'LT, Node (Insert x t) y t')
+    ]
+
+type family Case (x :: k) (xs :: [(k, g)]) :: g where
+  Case _ '[] = TypeError ('Text "non-exhaustive Case")
+  Case y ('(y, yes) ': xs) = yes
+  Case y (_ ': xs) = Case y xs
 
 
 
@@ -173,8 +187,8 @@ type family CAppend (x :: Constraint) (y :: Constraint) :: Constraint where
 -- list of types, and builds a constraint on all the types.
 
 type family Every (c :: Type -> Constraint) (x :: [Type]) :: Constraint where
-  -- ...
-
+  Every _ '[] = ()
+  Every c (x ': xs) = CAppend (c x) (Every c xs)
 -- | b. Write a 'Show' instance for 'HList' that requires a 'Show' instance for
 -- every type in the list.
 
