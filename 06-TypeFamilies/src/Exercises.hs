@@ -24,7 +24,7 @@ type family (+) (x :: Nat) (y :: Nat) :: Nat where
   (+) 'Z     y = y
   (+) ('S x) y = 'S (x + y)
 
--- | b. Write a type family '*' that multiplies two naturals using '(+)'. Which
+-- | b. Write a type family '**' that multiplies two naturals using '(+)'. Which
 -- extension are you being told to enable? Why?
 
 -- illegal nested type family is a big yikes - undecidable instances :|

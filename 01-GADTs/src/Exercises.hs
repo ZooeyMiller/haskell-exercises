@@ -275,8 +275,10 @@ deleteLeft :: HTree (Branch l c r) -> HTree (Branch Empty c r)
 deleteLeft (HNode _ c r) = HNode HLeaf c r
 
 -- | c. Implement 'Eq' for 'HTree's. Note that you might have to write more
--- than one to cover all possible HTrees. Recursion is your friend here - you
--- shouldn't need to add a constraint to the GADT!
+-- than one to cover all possible HTrees. You might also need an extension or
+-- two, so look out for something... flexible... in the error messages!
+-- Recursion is your friend here - you shouldn't need to add a constraint to
+-- the GADT!
 
 instance Eq (HTree Empty) where
   (==) _ _  = True
@@ -365,7 +367,8 @@ parse :: DirtyExpr -> Maybe (Expr Int)
 parse = error "Implement me"
 
 -- | c. Can we add functions to our 'Expr' language? If not, why not? What
--- other constructs would we need to add? Could we still avoid 'Maybe'?
+-- other constructs would we need to add? Could we still avoid 'Maybe' in the
+-- 'eval' function?
 
 
 
