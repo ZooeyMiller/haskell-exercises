@@ -7,7 +7,7 @@ module Exercises where
 
 import Data.Kind    (Constraint, Type)
 import GHC.TypeLits (Symbol)
-
+import Data.Monoid ((<>))
 
 
 
@@ -16,16 +16,18 @@ import GHC.TypeLits (Symbol)
 
 -- | Let's look at the following type family to build a constraint:
 
-type family All (c :: Type -> Constraint) (xs :: [Type]) :: Constraint where
+type family All (c :: k -> Constraint) (xs :: [k]) :: Constraint where
   All c '[] = ()
   All c (x ': xs) = (c x, All c xs)
 
 -- | a. Why does it have to be restricted to 'Type'? Can you make this more
 -- general?
-
+-- afaik it doesn't
 -- | b. Why does it have to be restricted to 'Constraint'? Can you make this
 -- more general? Why is this harder?
-
+-- because it actually does need to be a constaint, we can have a list of some
+-- kinds k and a family that goes from those kinds to a constraint, but we still
+-- do need a constraint
 
 
 
@@ -58,12 +60,17 @@ f (Tagged x) = putStrLn (show x <> " is important!")
 -- | a. Symbols are all well and good, but wouldn't it be nicer if we could
 -- generalise this?
 
+data GeneralTagged (name :: k) (a :: Type)
+  = GeneralTagged { runGeneralTagged :: a }
+
 -- | b. Can we generalise 'Type'? If so, how? If not, why not?
+
+-- We can't as for any value a we can only say that it has kind type. 
 
 -- | c. Often when we use the 'Tagged' type, we prefer a sum type (promoted
 -- with @DataKinds@) over strings. Why do you think this might be?
 
-
+-- if I typo "Important" it compiles if I typo a promoted sum type it doesn't
 
 
 
