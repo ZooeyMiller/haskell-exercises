@@ -10,13 +10,15 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Exercises where
 
 import Data.Kind (Constraint, Type)
 import Data.Map (Map)
 import Data.Proxy (Proxy (..))
-
-
+import Control.Applicative (liftA2)
 
 
 
@@ -34,11 +36,24 @@ newtype YourInt = YourInt Int
 
 -- | a. Write the class!
 
--- class Newtype ... ... where
---   wrap   :: ...
---   unwrap :: ...
+class Newtype a b where
+  wrap   :: b -> a
+  unwrap :: a -> b
 
 -- | b. Write instances for 'MyInt' and 'YourInt'.
+instance Newtype MyInt Int where
+  wrap = MyInt
+  unwrap (MyInt x) = x
+
+instance Newtype YourInt Int where
+  wrap = YourInt
+  unwrap (YourInt x) = x
+
+rewrap :: forall b c a. (Newtype a b, Newtype c b) => a -> c
+rewrap = (wrap @c @b) . (unwrap @a @b)
+
+test :: MyInt -> YourInt
+test = rewrap @Int
 
 -- | c. Write a function that adds together two values of the same type,
 -- providing that the type is a newtype around some type with a 'Num' instance.
@@ -81,14 +96,33 @@ instance Traversable Identity where
 -- | a. Write that little dazzler! What error do we get from GHC? What
 -- extension does it suggest to fix this?
 
--- class Wanderable … … where
---   wander :: … => (a -> f b) -> t a -> f (t b)
+class Wanderable (c :: (Type -> Type) -> Constraint) (t :: Type -> Type) where
+  wander :: c f => (a -> f b) -> t a -> f (t b)
 
 -- | b. Write a 'Wanderable' instance for 'Identity'.
+
+instance Wanderable Functor Identity where
+  wander f (Identity x) = Identity <$> f x
 
 -- | c. Write 'Wanderable' instances for 'Maybe', '[]', and 'Proxy', noting the
 -- differing constraints required on the @f@ type. '[]' might not work so well,
 -- and we'll look at /why/ in the next part of this question!
+
+instance Wanderable Applicative Maybe where
+  wander _ Nothing = pure Nothing
+  wander f (Just x) = Just <$> f x
+
+instance Wanderable Applicative [] where
+  wander f t = l
+    where
+    --  g :: [f b]
+      g = fmap f t
+     -- k :: [f [b]]
+      k = (fmap . fmap) pure g
+      l = foldr (\x y -> liftA2 (<>) x y) (pure []) k
+
+instance Wanderable Applicative Proxy where
+  wander _ _ = pure Proxy
 
 -- | d. Assuming you turned on the extension suggested by GHC, why does the
 -- following produce an error? Using only the extensions we've seen so far, how
@@ -97,7 +131,7 @@ instance Traversable Identity where
 -- we'll see in later chapters that there are neater solutions to this
 -- problem!)
 
--- test = wander Just [1, 2, 3]
+test' = wander @(Applicative) Just [1, 2, 3]
 
 
 
@@ -126,7 +160,8 @@ class (x :: Nat) < (y :: Nat) where
   convert :: SNat x -> Fin y
 
 -- | a. Write the instance that says @Z@ is smaller than @S n@ for /any/ @n@.
-
+instance 'Z < ('S n) where
+  convert _ = FZ
 -- | b. Write an instance that says, if @x@ is smaller than @y@, then @S x@ is
 -- smaller than @S y@.
 
@@ -145,7 +180,11 @@ class (x :: Nat) < (y :: Nat) where
 
 -- | a. Write that typeclass!
 
+class Equal x y where
+
 -- | b. Write that instance!
+
+instance Equal a a where
 
 -- | c. When GHC sees @x ~ y@, it can apply anything it knows about @x@ to @y@,
 -- and vice versa. We don't have the same luxury with /our/ class, however –
